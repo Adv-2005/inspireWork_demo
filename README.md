@@ -14,6 +14,7 @@ A multi-level IVR demo with OTP authentication, built with Node.js, Express, and
 - Level 2 IVR: Play audio message or connect to a live associate
 - Graceful invalid input handling with menu repeat
 - Console logging for all call events
+- SMS Summary delivery - caller recieves the Summary via text after call gets completed
 
 ---
 
@@ -150,6 +151,9 @@ Outbound Call Initiated
 │  Press 1 → Play audio message         │
 │  Press 2 → Connect to associate       │
 └──────────────────────────────────────┘
+│
+▼
+SMS sent to caller → Summary of the call
 ```
 
 Invalid input at any level replays the current prompt.
@@ -194,4 +198,7 @@ If you accidentally committed credentials:
 
 ## What Makes This Demo Stand Out
 
-The OTP is delivered via **SMS before the call connects** — combining Plivo's SMS and Voice APIs in a single workflow. This mirrors real-world authentication patterns (banking, 2FA) and demonstrates multi-channel orchestration rather than a voice-only integration.
+- The OTP is delivered via **SMS before the call connects** — combining Plivo's SMS and Voice APIs in a single workflow. This mirrors real-world authentication patterns (banking, 2FA) and demonstrates multi-channel orchestration rather than a voice-only integration.
+
+- After the call ends, send the caller an SMS summarising what they did.
+Shows you think about the full customer journey, not just the call itself. One extra Plivo SMS call in the hangup webhook.
