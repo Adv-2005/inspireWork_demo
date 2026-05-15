@@ -30,11 +30,11 @@ async function triggerCall() {
 
     showStatus(
       'success',
-      `✓ OTP sent via SMS\n✓ Call placed to ${to}`,
+      `✓ OTP sent via SMS\n Call placed to ${to}`,
       data.requestUuid ? `UUID: ${data.requestUuid}` : ''
     );
 
-    btn.innerHTML = '✓ Call Initiated';
+    btn.innerHTML = ' Call Initiated';
 
     setTimeout(() => {
       btn.disabled = false;

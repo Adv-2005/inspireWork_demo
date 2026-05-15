@@ -59,12 +59,11 @@ function getOrCreateCallSummary(body = {}) {
   return callSummaries.get(key);
 }
 
-// ─── HARDCODED OTP ────────────────────────────────────────────────────────────
+//  HARDCODED OTP
 // Your birthdate in DDMM format. Change this to your own birthdate.
-// Example: March 15 → "1503"
 const CORRECT_OTP = "1503";
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
+//HealthCheck
 app.get("/", (req, res) => res.send("Plivo IVR Demo is running."));
 
 // ─── POST /call — Trigger Outbound Call ───────────────────────────────────────
@@ -101,7 +100,7 @@ app.post("/call", async (req, res) => {
   }
 });
 
-// ─── POST /ivr/otp — Prompt caller to enter 4-digit OTP ──────────────────────
+//  POST /ivr/otp — Prompt caller to enter 4-digit OTP 
 app.post("/ivr/otp", (req, res) => {
   console.log("[OTP] Prompting caller for OTP");
 
@@ -126,7 +125,7 @@ app.post("/ivr/otp", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/otp/verify — Validate OTP, retry on failure ───────────────────
+//  POST /ivr/otp/verify — Validate OTP, retry on failure 
 app.post("/ivr/otp/verify", (req, res) => {
   const digits = req.body.Digits;
   console.log(`[OTP] Received: ${digits}`);
@@ -160,7 +159,7 @@ app.post("/ivr/otp/verify", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/language — Level 1: Language Selection ────────────────────────
+//  POST /ivr/language — Level 1: Language Selection 
 app.post("/ivr/language", (req, res) => {
   console.log("[IVR] Level 1 — Language selection");
 
@@ -182,7 +181,7 @@ app.post("/ivr/language", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/language/route — Route based on language choice ───────────────
+//  POST /ivr/language/route — Route based on language choice 
 app.post("/ivr/language/route", (req, res) => {
   const digit = req.body.Digits;
   console.log(`[LANGUAGE] User pressed: ${digit}`);
@@ -206,7 +205,7 @@ app.post("/ivr/language/route", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/menu/english — Level 2: English Options ───────────────────────
+//  POST /ivr/menu/english — Level 2: English Options 
 app.post("/ivr/menu/english", (req, res) => {
   console.log("[MENU] English menu");
 
@@ -231,7 +230,7 @@ app.post("/ivr/menu/english", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/menu/spanish — Level 2: Spanish Options ───────────────────────
+//  POST /ivr/menu/spanish — Level 2: Spanish Options 
 app.post("/ivr/menu/spanish", (req, res) => {
   console.log("[MENU] Spanish menu");
 
@@ -256,7 +255,7 @@ app.post("/ivr/menu/spanish", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/action/english — Handle English menu input ────────────────────
+// ─── POST /ivr/action/english — Handle English menu input 
 app.post("/ivr/action/english", (req, res) => {
   const digit = req.body.Digits;
   console.log(`[ACTION/EN] User pressed: ${digit}`);
@@ -286,7 +285,7 @@ app.post("/ivr/action/english", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/action/spanish — Handle Spanish menu input ────────────────────
+// ─── POST /ivr/action/spanish — Handle Spanish menu input 
 app.post("/ivr/action/spanish", (req, res) => {
   const digit = req.body.Digits;
   console.log(`[ACTION/ES] User pressed: ${digit}`);
@@ -318,7 +317,7 @@ app.post("/ivr/action/spanish", (req, res) => {
   res.send(response.toXML());
 });
 
-// ─── POST /ivr/hangup — Send post-call SMS summary ───────────────────────────
+// ─── POST /ivr/hangup — Send post-call SMS summary 
 app.post("/ivr/hangup", async (req, res) => {
   const summary = getOrCreateCallSummary(req.body);
   const callerNumber = normalizePhoneNumber(req.body.To || req.body.to || summary.to);
