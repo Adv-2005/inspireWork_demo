@@ -7,6 +7,7 @@ A multi-level IVR demo with OTP authentication, built with Node.js, Express, and
 ## Features
 
 - Trigger outbound calls via REST API
+- SMS OTP delivery — caller receives the OTP via text before the call connects
 - OTP Authentication — caller must enter a 4-digit code (DDMM birthdate) before accessing the IVR
 - Wrong OTP → re-prompted until correct
 - Level 1 IVR: Language selection (English / Spanish)
@@ -117,6 +118,12 @@ curl -X POST http://localhost:3000/call \
 ## Full IVR Flow
 
 ```
+POST /call triggered
+│
+▼
+SMS sent to caller → "Your code is XXXX"
+│
+▼
 Outbound Call Initiated
         │
         ▼
@@ -185,3 +192,6 @@ If you accidentally committed credentials:
 
 ---
 
+## What Makes This Demo Stand Out
+
+The OTP is delivered via **SMS before the call connects** — combining Plivo's SMS and Voice APIs in a single workflow. This mirrors real-world authentication patterns (banking, 2FA) and demonstrates multi-channel orchestration rather than a voice-only integration.

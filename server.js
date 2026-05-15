@@ -30,16 +30,26 @@ app.post("/call", async (req, res) => {
   if (!to) return res.status(400).json({ error: "Missing 'to' phone number." });
 
   try {
+    // Step 1: Send OTP via SMS first
+    await client.messages.create(
+      PLIVO_NUMBER,   // from
+      to,             // to
+      `Your InspireWorks verification code is: ${CORRECT_OTP}. You will receive a call shortly.`
+    );
+    console.log(`[SMS] OTP sent to ${to}`);
+
+    // Step 2: Place the call
     const response = await client.calls.create(
       PLIVO_NUMBER,
       to,
       `${BASE_URL}/ivr/otp`,
       { answerMethod: "POST" }
     );
+
     console.log(`[CALL] Initiated to ${to} | UUID: ${response.requestUuid}`);
-    res.json({ message: "Call initiated", requestUuid: response.requestUuid });
+    res.json({ message: "OTP sent via SMS. Call initiated.", requestUuid: response.requestUuid });
   } catch (err) {
-    console.error("[CALL ERROR]", err.message);
+    console.error("[ERROR]", err.message);
     res.status(500).json({ error: err.message });
   }
 });
