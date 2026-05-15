@@ -10,6 +10,7 @@ A multi-level IVR demo with OTP authentication, built with Node.js, Express, and
 - SMS OTP delivery — caller receives the OTP via text before the call connects
 - OTP Authentication — caller must enter a 4-digit code (DDMM birthdate) before accessing the IVR
 - Wrong OTP → re-prompted until correct
+- OTP Retries Lockout- After 3 wrong OTPs call gets disconnected.
 - Level 1 IVR: Language selection (English / Spanish)
 - Level 2 IVR: Play audio message or connect to a live associate
 - Graceful invalid input handling with menu repeat
@@ -31,6 +32,8 @@ plivo-ivr-demo/
 ```
 
 ---
+## Live Call Status (Demo UI)
+
 
 ## Prerequisites
 
@@ -201,4 +204,5 @@ If you accidentally committed credentials:
 - The OTP is delivered via **SMS before the call connects** — combining Plivo's SMS and Voice APIs in a single workflow. This mirrors real-world authentication patterns (banking, 2FA) and demonstrates multi-channel orchestration rather than a voice-only integration.
 
 - After the call ends, send the caller an SMS summarising what they did.
-Shows you think about the full customer journey, not just the call itself. One extra Plivo SMS call in the hangup webhook.
+
+- After 3 incorrect OTPs, call gets disconnected.

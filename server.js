@@ -21,6 +21,20 @@ const PORT             = process.env.PORT || 3000;
 
 const callSummaries = new Map();
 
+// SSE clients
+const sseClients = new Set();
+
+function broadcastEvent(obj) {
+  const payload = `data: ${JSON.stringify(obj)}\n\n`;
+  for (const res of sseClients) {
+    try {
+      res.write(payload);
+    } catch (err) {
+      // ignore broken clients; they'll be cleaned up on 'close'
+    }
+  }
+}
+
 function normalizePhoneNumber(value) {
   return value ? String(value).trim() : "";
 }
@@ -355,6 +369,53 @@ app.post("/ivr/hangup", async (req, res) => {
     console.error("[HANGUP SMS ERROR]", err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── GET /events — Server-Sent Events stream for live UI updates ───────────
+app.get('/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders && res.flushHeaders();
+
+  // send a welcome event
+  res.write('data: {"type":"connected","time":' + Date.now() + '}\n\n');
+
+  sseClients.add(res);
+
+  // keep the connection alive through proxies that may close idle connections
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(': keep-alive\n\n');
+    } catch (err) {
+      // ignore write errors
+    }
+  }, 15000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    sseClients.delete(res);
+  });
+});
+
+// ─── POST /ivr/status — Receive call status updates from Plivo and broadcast ─
+app.post('/ivr/status', (req, res) => {
+  // Plivo will POST events such as: CallUUID, CallStatus, CallDuration, From, To, Event
+  console.log('[STATUS WEBHOOK]', req.body);
+
+  // keep a lightweight record for lookup
+  const key = getCallKey(req.body);
+  const summary = getOrCreateCallSummary(req.body);
+
+  // attach status info to the summary for possible later use
+  summary.lastStatus = req.body.CallStatus || req.body.callStatus || req.body.Event || req.body.event;
+  summary.callDuration = req.body.CallDuration || req.body.callDuration;
+
+  // Broadcast raw webhook to connected clients
+  broadcastEvent({ type: 'plivo_status', payload: req.body });
+
+  res.sendStatus(200);
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────

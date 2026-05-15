@@ -50,6 +50,52 @@ async function triggerCall() {
   }
 }
 
+// Live status updates via Server-Sent Events
+function initEventSource() {
+  if (!window.EventSource) return;
+
+  const url = `${location.protocol}//${location.host}/events`;
+  let es;
+  let reconnectTimer = null;
+
+  function connect() {
+    es = new EventSource(url);
+
+    es.onopen = () => {
+      console.log('SSE connected');
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    };
+
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'plivo_status') {
+          const p = data.payload;
+          const statusText = `Status: ${p.CallStatus || p.callStatus || p.Event || p.event || 'unknown'}; From: ${p.From || p.from || ''}; To: ${p.To || p.to || ''}`;
+          showStatus('info', statusText, `UUID: ${p.CallUUID || p.callUUID || ''}`);
+        }
+      } catch (err) {
+        // some server messages might not be JSON (e.g., comments); ignore parse errors
+      }
+    };
+
+    es.onerror = (err) => {
+      console.log('SSE error', err);
+      try { es.close(); } catch (e) {}
+      if (!reconnectTimer) {
+        reconnectTimer = setTimeout(() => connect(), 3000);
+      }
+    };
+  }
+
+  connect();
+}
+
+initEventSource();
+
 function showStatus(type, msg, sub = '') {
   const el = document.getElementById('status');
   el.className = `status ${type}`;
