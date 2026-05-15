@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>InspireWorks IVR Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="card">
+
+    <div class="logo-row">
+      <div class="logo-icon">📞</div>
+      <span class="logo-text">InspireWorks</span>
+      <span class="badge">IVR Demo</span>
+    </div>
+
+    <h1>Voice Demo<br/>Launcher</h1>
+    <p class="subtitle">// outbound call + otp + ivr flow</p>
+
+    <div class="flow-steps" id="steps">
+      <div class="step active" id="step-sms">
+        <span class="step-icon">💬</span>SMS OTP
+      </div>
+      <div class="step" id="step-call">
+        <span class="step-icon">📲</span>Call
+      </div>
+      <div class="step" id="step-auth">
+        <span class="step-icon">🔐</span>Auth
+      </div>
+      <div class="step" id="step-ivr">
+        <span class="step-icon">🎛️</span>IVR
+      </div>
+    </div>
+
+    <label for="phone">Destination Number</label>
+    <div class="input-wrap">
+      <span class="prefix">+</span>
+      <input
+        type="tel"
+        id="phone"
+        placeholder="918031274121"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <button id="callBtn" onclick="triggerCall()">
+      Initiate Call
+    </button>
+
+    <div class="status" id="status">
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <div>
+          <div id="statusMsg"></div>
+          <div class="uuid" id="uuid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="footer-label">Plivo Voice API</span>
+      <span class="powered">powered by <span>plivo</span></span>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

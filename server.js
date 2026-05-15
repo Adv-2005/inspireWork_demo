@@ -2,9 +2,12 @@ require("dotenv").config();
 const express = require("express");
 const plivo = require("plivo");
 
+const path = require("path");
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
 const client = new plivo.Client(
   process.env.PLIVO_AUTH_ID,
@@ -15,6 +18,30 @@ const BASE_URL         = process.env.BASE_URL;
 const PLIVO_NUMBER     = process.env.PLIVO_PHONE_NUMBER;
 const ASSOCIATE_NUMBER = process.env.ASSOCIATE_NUMBER;
 const PORT             = process.env.PORT || 3000;
+
+const callSummaries = new Map();
+
+function normalizePhoneNumber(value) {
+  return value ? String(value).trim() : "";
+}
+
+function getCallKey(body = {}) {
+  return normalizePhoneNumber(body.CallUUID || body.callUUID || body.To || body.to || body.From || body.from);
+}
+
+function getOrCreateCallSummary(body = {}) {
+  const key = getCallKey(body);
+
+  if (!callSummaries.has(key)) {
+    callSummaries.set(key, {
+      to: normalizePhoneNumber(body.To || body.to),
+      language: null,
+      action: null,
+    });
+  }
+
+  return callSummaries.get(key);
+}
 
 // ─── HARDCODED OTP ────────────────────────────────────────────────────────────
 // Your birthdate in DDMM format. Change this to your own birthdate.
@@ -43,7 +70,11 @@ app.post("/call", async (req, res) => {
       PLIVO_NUMBER,
       to,
       `${BASE_URL}/ivr/otp`,
-      { answerMethod: "POST" }
+      {
+        answerMethod: "POST",
+        hangupUrl: `${BASE_URL}/ivr/hangup`,
+        hangupMethod: "POST",
+      }
     );
 
     console.log(`[CALL] Initiated to ${to} | UUID: ${response.requestUuid}`);
@@ -127,11 +158,15 @@ app.post("/ivr/language/route", (req, res) => {
   const digit = req.body.Digits;
   console.log(`[LANGUAGE] User pressed: ${digit}`);
 
+  const summary = getOrCreateCallSummary(req.body);
+
   const response = new plivo.Response();
 
   if (digit === "1") {
+    summary.language = "English";
     response.addRedirect(`${BASE_URL}/ivr/menu/english`, { method: "POST" });
   } else if (digit === "2") {
+    summary.language = "Spanish";
     response.addRedirect(`${BASE_URL}/ivr/menu/spanish`, { method: "POST" });
   } else {
     response.addSpeak("Invalid input. Please try again.", { language: "en-US" });
@@ -197,14 +232,18 @@ app.post("/ivr/action/english", (req, res) => {
   const digit = req.body.Digits;
   console.log(`[ACTION/EN] User pressed: ${digit}`);
 
+  const summary = getOrCreateCallSummary(req.body);
+
   const response = new plivo.Response();
 
   if (digit === "1") {
+    summary.action = "listened to our message";
     response.addSpeak("Here is your message.", { language: "en-US" });
     response.addPlay("https://samplelib.com/lib/preview/mp3/sample-3s.mp3");
     response.addSpeak("Thank you for listening. Goodbye.", { language: "en-US" });
     response.addHangup();
   } else if (digit === "2") {
+    summary.action = "connected to an associate";
     console.log(`[ACTION/EN] Forwarding to: ${ASSOCIATE_NUMBER}`);
     response.addSpeak("Connecting you to an associate. Please hold.", { language: "en-US" });
     const dial = response.addDial();
@@ -223,14 +262,20 @@ app.post("/ivr/action/spanish", (req, res) => {
   const digit = req.body.Digits;
   console.log(`[ACTION/ES] User pressed: ${digit}`);
 
+  const summary = getOrCreateCallSummary(req.body);
+
   const response = new plivo.Response();
 
   if (digit === "1") {
+    summary.language = summary.language || "Spanish";
+    summary.action = "listened to our message";
     response.addSpeak("Aqui esta su mensaje.", { language: "es-ES" });
     response.addPlay("https://samplelib.com/lib/preview/mp3/sample-3s.mp3");
     response.addSpeak("Gracias por escuchar. Adios.", { language: "es-ES" });
     response.addHangup();
   } else if (digit === "2") {
+    summary.language = summary.language || "Spanish";
+    summary.action = "connected to an associate";
     console.log(`[ACTION/ES] Forwarding to: ${ASSOCIATE_NUMBER}`);
     response.addSpeak("Conectandote con un asociado. Por favor espera.", { language: "es-ES" });
     const dial = response.addDial();
@@ -242,6 +287,59 @@ app.post("/ivr/action/spanish", (req, res) => {
 
   res.set("Content-Type", "application/xml");
   res.send(response.toXML());
+});
+
+// ─── POST /ivr/hangup — Send post-call SMS summary ───────────────────────────
+app.post("/ivr/hangup", async (req, res) => {
+  const summary = getOrCreateCallSummary(req.body);
+  const callerNumber = normalizePhoneNumber(req.body.To || req.body.to || summary.to);
+  const callUuid = normalizePhoneNumber(req.body.CallUUID || req.body.callUUID);
+
+  let durationText = "0m 0s";
+
+  try {
+    if (callUuid) {
+      const callDetails = await client.calls.get(callUuid);
+      const durationSeconds = Number.parseInt(callDetails.callDuration, 10);
+
+      if (Number.isFinite(durationSeconds)) {
+        durationText = `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`;
+      }
+    }
+  } catch (lookupErr) {
+    console.error("[HANGUP LOOKUP ERROR]", lookupErr.message);
+
+    const rawDuration = req.body.CallDuration || req.body.callDuration || "0";
+    const durationSeconds = Number.parseInt(rawDuration, 10);
+    if (Number.isFinite(durationSeconds)) {
+      durationText = `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`;
+    }
+  }
+
+  const language = summary.language || "English";
+  const action = summary.action || "completed the call";
+  const summaryText = `Thanks for calling InspireWorks. You selected ${language} and ${action}. Call duration: ${durationText}.`;
+
+  console.log(`[HANGUP] Sending SMS summary to ${callerNumber}: ${summaryText}`);
+
+  try {
+    if (callerNumber) {
+      await client.messages.create(PLIVO_NUMBER, callerNumber, summaryText);
+    }
+
+    if (summary.to) {
+      callSummaries.delete(summary.to);
+    }
+
+    if (callUuid) {
+      callSummaries.delete(callUuid);
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("[HANGUP SMS ERROR]", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
