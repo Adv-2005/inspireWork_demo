@@ -37,6 +37,8 @@ function getOrCreateCallSummary(body = {}) {
       to: normalizePhoneNumber(body.To || body.to),
       language: null,
       action: null,
+      otpAttempts: 0,
+      otpLocked: false,
     });
   }
 
@@ -115,16 +117,29 @@ app.post("/ivr/otp/verify", (req, res) => {
   const digits = req.body.Digits;
   console.log(`[OTP] Received: ${digits}`);
 
+  const summary = getOrCreateCallSummary(req.body);
+
   const response = new plivo.Response();
 
   if (digits === CORRECT_OTP) {
     console.log("[OTP] Correct — proceeding to language selection");
+    summary.otpAttempts = 0;
+    summary.otpLocked = false;
     response.addSpeak("Authentication successful. Welcome.", { language: "en-US" });
     response.addRedirect(`${BASE_URL}/ivr/language`, { method: "POST" });
   } else {
-    console.log(`[OTP] Incorrect: ${digits} — re-prompting`);
-    response.addSpeak("Incorrect code. Please try again.", { language: "en-US" });
-    response.addRedirect(`${BASE_URL}/ivr/otp`, { method: "POST" });
+    summary.otpAttempts += 1;
+
+    if (summary.otpAttempts >= 3) {
+      summary.otpLocked = true;
+      console.log(`[OTP] Incorrect: ${digits} — lockout triggered`);
+      response.addSpeak("Too many failed attempts. Goodbye.", { language: "en-US" });
+      response.addHangup();
+    } else {
+      console.log(`[OTP] Incorrect: ${digits} — re-prompting (${summary.otpAttempts}/3)`);
+      response.addSpeak("Incorrect code. Please try again.", { language: "en-US" });
+      response.addRedirect(`${BASE_URL}/ivr/otp`, { method: "POST" });
+    }
   }
 
   res.set("Content-Type", "application/xml");
